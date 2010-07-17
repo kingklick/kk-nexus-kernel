@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/irq.h>
 #include <asm/gpio.h>
 #include "gpio_chip.h"
 
@@ -108,3 +109,16 @@ int register_gpio_chip(struct old_gpio_chip *new_gpio_chip)
 	return gpiochip_add(&new_gpio_chip->gpio_chip);
 }
 
+int gpio_configure(unsigned int gpio, unsigned long flags)
+{
+	int ret = -ENOTSUPP;
+	struct old_gpio_chip *chip;
+	unsigned long irq_flags;
+
+	spin_lock_irqsave(&chip->lock, irq_flags);
+	chip = get_irq_chip_data(gpio);
+	if (chip)
+		ret = chip->configure(chip, gpio, flags);
+	spin_unlock_irqrestore(&chip->lock, irq_flags);
+	return ret;
+}
