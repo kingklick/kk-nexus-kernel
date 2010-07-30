@@ -1834,13 +1834,7 @@ static int msm_get_pic(struct msm_sync *sync, void __user *arg)
 
 	if (!pic_pmem_region) {
 		pr_err("%s pmem region lookup error\n", __func__);
-		pr_info("%s probably getting RAW\n", __func__);
-		if (msm_pmem_region_lookup(&sync->pmem_frames,
-				MSM_PMEM_RAW_MAINIMG,
-				pic_pmem_region, 1) == 0) {
-			pr_err("%s RAW pmem region lookup error\n", __func__);
-			return -EIO;
-		}
+		return -EIO;
 	}
 	cline_mask = cache_line_size() - 1;
 	end = pic_pmem_region->kvaddr + pic_pmem_region->len;
