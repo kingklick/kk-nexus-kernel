@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <mach/board.h>
 
+#include <linux/dma-mapping.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
@@ -35,7 +36,6 @@
 #include <mach/camera.h>
 
 #include <asm/cacheflush.h>
-#define dmac_inv_range(a,b) WARN(1, "need cache invalidate\n")
 
 #define MSM_MAX_CAMERA_SENSORS 5
 #define CAMERA_STOP_SNAPSHOT 42
@@ -456,7 +456,6 @@ static int __msm_get_frame(struct msm_sync *sync,
 		goto err;
 	}
 
-	frame->ts = qcmd->ts;
 	frame->buffer = (unsigned long)region->info.vaddr;
 	frame->y_off = region->info.y_off;
 	frame->cbcr_off = region->info.cbcr_off;
@@ -949,6 +948,7 @@ static int msm_get_stats(struct msm_sync *sync, void __user *arg)
 		se.ctrl_cmd.resp_fd = ctrl->resp_fd;
 		break;
 
+#ifdef CONFIG_MSM_CAMERA_V4L2
 	case MSM_CAM_Q_V4L2_REQ:
 		/* control command from v4l2 client */
 		ctrl = (struct msm_ctrl_cmd *)(qcmd->command);
@@ -971,6 +971,7 @@ static int msm_get_stats(struct msm_sync *sync, void __user *arg)
 		se.ctrl_cmd.type   = ctrl->type;
 		se.ctrl_cmd.length = ctrl->length;
 		break;
+#endif
 
 	default:
 		rc = -EFAULT;
@@ -1240,6 +1241,29 @@ static int msm_frame_axi_cfg(struct msm_sync *sync,
 		}
 		break;
 
+	case CMD_AXI_CFG_O1_AND_O2:
+		pmem_type = MSM_PMEM_OUTPUT1;
+		axi_data.bufnum1 =
+			msm_pmem_region_lookup(&sync->pmem_frames, pmem_type,
+				&region[0], 8);
+		if (!axi_data.bufnum1) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+
+		pmem_type = MSM_PMEM_OUTPUT2;
+		axi_data.bufnum2 =
+			msm_pmem_region_lookup(&sync->pmem_frames, pmem_type,
+				&region[axi_data.bufnum1],
+				(8-(axi_data.bufnum1)));
+		if (!axi_data.bufnum2) {
+			pr_err("%s %d: pmem region lookup error\n",
+				__func__, __LINE__);
+			return -EINVAL;
+		}
+		break;
+
 	case CMD_AXI_CFG_SNAP:
 	case CMD_AXI_CFG_SNAP_O1_AND_O2:
 		pmem_type = MSM_PMEM_THUMBNAIL;
@@ -1348,8 +1372,9 @@ static int __msm_put_frame_buf(struct msm_sync *sync,
 		if (sync->vfefn.vfe_config)
 			rc = sync->vfefn.vfe_config(&cfgcmd, &pphy);
 	} else {
-		pr_err("%s: msm_pmem_frame_vtop_lookup failed\n",
-			__func__);
+		pr_err("%s: msm_pmem_frame_vtop_lookup failed. "
+			"buffer=0x%lx, y_off=%d, cbcr_off=%d, fd=%d\n",
+			__func__, pb->buffer, pb->y_off, pb->cbcr_off, pb->fd);
 		rc = -EINVAL;
 	}
 
@@ -1536,6 +1561,7 @@ static int msm_axi_config(struct msm_sync *sync, void __user *arg)
 	switch (cfgcmd.cmd_type) {
 	case CMD_AXI_CFG_OUT1:
 	case CMD_AXI_CFG_OUT2:
+	case CMD_AXI_CFG_O1_AND_O2:
 	case CMD_AXI_CFG_SNAP_O1_AND_O2:
 	case CMD_AXI_CFG_VIDEO:
 	case CMD_AXI_CFG_PREVIEW:
@@ -1643,8 +1669,12 @@ static int msm_get_pic(struct msm_sync *sync, void __user *arg)
 	if (msm_pmem_region_lookup(&sync->pmem_frames,
 				MSM_PMEM_MAINIMG,
 				&pic_pmem_region, 1) == 0) {
-		pr_err("%s pmem region lookup error\n", __func__);
-		return -EIO;
+		if(msm_pmem_region_lookup(&sync->pmem_frames,
+					MSM_PMEM_RAW_MAINIMG,
+					&pic_pmem_region, 1) == 0) {
+			pr_err("%s pmem region lookup error\n", __func__);
+			return -EIO;
+		}
 	}
 
 	cline_mask = cache_line_size() - 1;
@@ -1655,8 +1685,9 @@ static int msm_get_pic(struct msm_sync *sync, void __user *arg)
 		__func__,
 		pic_pmem_region.kvaddr, end);
 
-	dmac_inv_range((const void *)pic_pmem_region.kvaddr,
-			(const void *)end);
+	/* HACK: Invalidate buffer */
+	dmac_map_area((void*)pic_pmem_region.kvaddr, pic_pmem_region.len,
+			DMA_FROM_DEVICE);
 
 	CDBG("%s: copy snapshot frame to user\n", __func__);
 	if (copy_to_user((void *)arg,
@@ -2168,8 +2199,6 @@ static void msm_vfe_sync(struct msm_vfe_resp *vdata,
 	qcmd->type = qtype;
 	qcmd->command = vdata;
 
-	ktime_get_ts(&(qcmd->ts));
-
 	if (qtype != MSM_CAM_Q_VFE_MSG)
 		goto for_config;
 
@@ -2387,6 +2416,7 @@ static int msm_open_control(struct inode *inode, struct file *filep)
 	return rc;
 }
 
+#ifdef CONFIG_MSM_CAMERA_V4L2
 static int __msm_v4l2_control(struct msm_sync *sync,
 		struct msm_ctrl_cmd *out)
 {
@@ -2423,6 +2453,7 @@ end:
 	CDBG("%s: rc %d\n", __func__, rc);
 	return rc;
 }
+#endif
 
 static const struct file_operations msm_fops_config = {
 	.owner = THIS_MODULE,
@@ -2485,6 +2516,7 @@ static int msm_tear_down_cdev(struct msm_device *msm, dev_t devno)
 	return 0;
 }
 
+#ifdef CONFIG_MSM_CAMERA_V4L2
 int msm_v4l2_register(struct msm_v4l2_driver *drv)
 {
 	/* FIXME: support multiple sensors */
@@ -2511,6 +2543,7 @@ int msm_v4l2_unregister(struct msm_v4l2_driver *drv)
 	return 0;
 }
 EXPORT_SYMBOL(msm_v4l2_unregister);
+#endif
 
 static int msm_sync_init(struct msm_sync *sync,
 		struct platform_device *pdev,
