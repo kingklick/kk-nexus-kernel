@@ -919,10 +919,10 @@ static void mahimahi_headset_init(void)
 
 static char bdaddress[BDADDR_STR_SIZE];
 
-module_param_string(bdaddr, bdaddr, sizeof(bdaddress), 0400);
+module_param_string(bdaddress, bdaddress, sizeof(bdaddress), 0400);
 MODULE_PARM_DESC(bdaddress, "BT MAC ADDRESS");
 
-static int __init parse_tag_bdaddr(const struct tag *tag)
+static int __init parse_tag_bdaddress(const struct tag *tag)
 {
 	unsigned char *b = (unsigned char *)&tag->u;
 
