@@ -729,7 +729,12 @@ static struct platform_device mahimahi_timed_gpios = {
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 	.rx_wakeup_irq = -1,
 	.inject_rx_on_wakeup = 0,
-	.exit_lpm_cb = bcm_bt_lpm_exit_lpm_locked,
+	//.exit_lpm_cb = bcm_bt_lpm_exit_lpm_locked,
+
+        /* for bcm */
+	.bt_wakeup_pin_supported = 1,
+	.bt_wakeup_pin = MAHIMAHI_GPIO_BT_WAKE,
+	.host_wakeup_pin = MAHIMAHI_GPIO_BT_HOST_WAKE,
 };
 
 static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
@@ -910,27 +915,27 @@ static void mahimahi_headset_init(void)
 
 #define ATAG_BDADDR 0x43294329  /* mahimahi bluetooth address tag */
 #define ATAG_BDADDR_SIZE 4
-#define BDADDR_STR_SIZE 18
+#define BDADDR_STR_SIZE 20
 
-static char bdaddr[BDADDR_STR_SIZE];
+static char bdaddress[BDADDR_STR_SIZE];
 
-module_param_string(bdaddr, bdaddr, sizeof(bdaddr), 0400);
-MODULE_PARM_DESC(bdaddr, "bluetooth address");
+module_param_string(bdaddress, bdaddress, sizeof(bdaddress), 0400);
+MODULE_PARM_DESC(bdaddr, "BT MAC ADDRESS");
 
-static int __init parse_tag_bdaddr(const struct tag *tag)
+static int __init parse_tag_bdaddress(const struct tag *tag)
 {
 	unsigned char *b = (unsigned char *)&tag->u;
 
 	if (tag->hdr.size != ATAG_BDADDR_SIZE)
 		return -EINVAL;
 
-	snprintf(bdaddr, BDADDR_STR_SIZE, "%02X:%02X:%02X:%02X:%02X:%02X",
+	snprintf(bdaddress, BDADDR_STR_SIZE, "%02X:%02X:%02X:%02X:%02X:%02X",
 			b[0], b[1], b[2], b[3], b[4], b[5]);
 
         return 0;
 }
 
-__tagtable(ATAG_BDADDR, parse_tag_bdaddr);
+__tagtable(ATAG_BDADDR, parse_tag_bdaddress);
 
 static int __init board_serialno_setup(char *serialno)
 {
@@ -1115,6 +1120,7 @@ static void __init mahimahi_init(void)
 
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
+        msm_device_uart_dm1.name = "msm_serial_hs_bcm";	/* for bcm */
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
