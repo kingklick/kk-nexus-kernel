@@ -199,4 +199,7 @@ static inline void regulator_has_full_constraints(void)
 extern int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 				int min_uV, int max_uV);
 
+extern int tps65023_set_dcdc1_level(struct regulator_dev *dev,
+				int mvolts);
+
 #endif

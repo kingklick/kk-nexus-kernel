@@ -993,7 +993,7 @@ static int qsd8x50_tps65023_set_dcdc1(int mVolts)
 	}
 
 #ifdef CONFIG_QSD_SVS
-	rc = tps65023_dcdc_set_voltage(mahimahi_clock_data.regulator->rdev, mVolts * 1000, mVolts * 1000);
+	rc = tps65023_set_dcdc1_level(mahimahi_clock_data.regulator->rdev, mVolts);
 	/* By default the TPS65023 will be initialized to 1.225V.
 	 * So we can safely switch to any frequency within this
 	 * voltage even if the device is not probed/ready.
