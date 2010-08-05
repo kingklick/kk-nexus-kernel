@@ -29,8 +29,6 @@ struct msm_acpu_clock_platform_data
 	unsigned long mpll_khz;
 	unsigned long power_collapse_khz;
 	unsigned long wait_for_irq_khz;
-	unsigned int max_vdd;
-	int (*acpu_set_vdd) (int mvolts);
 };
 
 struct msm_camera_io_ext {

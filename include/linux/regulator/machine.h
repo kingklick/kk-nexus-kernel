@@ -195,6 +195,4 @@ static inline void regulator_has_full_constraints(void)
 }
 #endif
 
-extern int tps65023_set_dcdc1_level(int mvolts);
-
 #endif
