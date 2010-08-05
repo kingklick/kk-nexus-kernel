@@ -400,6 +400,61 @@ static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 	return rv;
 }
 
+int tps65023_set_dcdc1_level(struct regulator_dev *dev,
+			     int mvolts)
+{
+	struct tps_pmic *tps = rdev_get_drvdata(dev);
+	int dcdc = rdev_get_id(dev);
+	int vsel;
+	int rv;
+	int uV = 0;
+	int delay;
+	int min_uV, max_uV;
+
+	min_uV = max_uV = mvolts * 1000;
+
+	if (dcdc != TPS65023_DCDC_1)
+		return -EINVAL;
+
+	if (min_uV < tps->info[dcdc]->min_uV
+			|| min_uV > tps->info[dcdc]->max_uV)
+		return -EINVAL;
+	if (max_uV < tps->info[dcdc]->min_uV
+			|| max_uV > tps->info[dcdc]->max_uV)
+		return -EINVAL;
+
+	for (vsel = 0; vsel < tps->info[dcdc]->table_len; vsel++) {
+		int mV = tps->info[dcdc]->table[vsel];
+		uV = mV * 1000;
+
+		/* Break at the first in-range value */
+		if (min_uV <= uV && uV <= max_uV)
+			break;
+	}
+
+	/* write to the register in case we found a match */
+	if (vsel == tps->info[dcdc]->table_len)
+		return -EINVAL;
+
+	rv = i2c_smbus_write_byte_data(tps->client, TPS65023_REG_DEF_CORE, vsel);
+
+	if (!rv)
+		rv = i2c_smbus_write_byte_data(tps->client,
+				TPS65023_REG_CON_CTRL2, 0x80);
+
+	/* Add delay to reach relected voltage (14.4 mV/us default slew rate) */
+	if (tps->dcdc1_last_uV)
+		delay = abs(tps->dcdc1_last_uV - uV);
+	else
+		delay = max(uV - 800000, 1600000 - uV);
+	delay = DIV_ROUND_UP(delay, 14400);
+	udelay(delay);
+	tps->dcdc1_last_uV = rv ? 0 /* Unknown voltage */ : uV;
+
+	return rv;
+}
+EXPORT_SYMBOL(tps65023_set_dcdc1_level);
+
 static int tps65023_ldo_get_voltage(struct regulator_dev *dev)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
