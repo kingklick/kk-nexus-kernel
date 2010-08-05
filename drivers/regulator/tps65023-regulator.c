@@ -350,7 +350,7 @@ static int tps65023_dcdc_get_voltage(struct regulator_dev *dev)
 		return tps->info[dcdc]->min_uV;
 }
 
-static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
+int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 				int min_uV, int max_uV)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
@@ -399,6 +399,36 @@ static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 
 	return rv;
 }
+EXPORT_SYMBOL(tps65023_dcdc_set_voltage);
+
+int tps65023_set_dcdc1_level(struct regulator_dev *dev,
+			     int mvolts)
+{
+	int val;
+	int ret;
+
+	struct tps_pmic *tps = rdev_get_drvdata(dev);
+
+	if (!tps->client)
+		return -ENODEV;
+
+	if (mvolts < 800 || mvolts > 1600)
+		return -EINVAL;
+
+	if (mvolts == 1600)
+		val = 0x1F;
+	else
+		val = ((mvolts - 800)/25) & 0x1F;
+
+	ret = i2c_smbus_write_byte_data(tps->client, TPS65023_REG_DEF_CORE, val);
+
+	if (!ret)
+		ret = i2c_smbus_write_byte_data(tps->client,
+				TPS65023_REG_CON_CTRL2, 0x80);
+
+	return ret;
+}
+EXPORT_SYMBOL(tps65023_set_dcdc1_level);
 
 static int tps65023_ldo_get_voltage(struct regulator_dev *dev)
 {
