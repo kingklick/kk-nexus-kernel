@@ -350,7 +350,7 @@ static int tps65023_dcdc_get_voltage(struct regulator_dev *dev)
 		return tps->info[dcdc]->min_uV;
 }
 
-static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
+int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 				int min_uV, int max_uV)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
@@ -399,6 +399,8 @@ static int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
 
 	return rv;
 }
+
+EXPORT_SYMBOL(tps65023_dcdc_set_voltage);
 
 static int tps65023_ldo_get_voltage(struct regulator_dev *dev)
 {
