@@ -16,7 +16,6 @@
 #define __LINUX_REGULATOR_MACHINE_H_
 
 #include <linux/regulator/consumer.h>
-#include <linux/regulator/driver.h>
 #include <linux/suspend.h>
 
 struct regulator;
@@ -195,8 +194,5 @@ static inline void regulator_has_full_constraints(void)
 {
 }
 #endif
-
-extern int tps65023_dcdc_set_voltage(struct regulator_dev *dev,
-				int min_uV, int max_uV);
 
 #endif
