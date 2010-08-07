@@ -31,6 +31,9 @@ modules.builtin
 *.lzo
 *.patch
 *.gcno
+*.bak
+vmlinux
+piggy.gzip
 
 #
 # Top-level generic files
