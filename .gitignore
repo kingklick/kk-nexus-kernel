@@ -74,11 +74,6 @@ GRTAGS
 GSYMS
 GTAGS
 
-# exclude boot files
-arch/arm/boot/vmlinux
-arch/arm/boot/piggy.gzip
-arch/arm/boot/zImage
-
 *.orig
 *~
 \#*#
