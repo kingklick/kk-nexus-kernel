@@ -56,6 +56,7 @@ struct clkctl_acpu_speed {
 	unsigned sc_l_value;
 	unsigned lpj;
 	int      vdd;
+	unsigned axiclk_khz;
 };
 
 /* clock sources */
@@ -72,27 +73,27 @@ struct clkctl_acpu_speed {
 #define SRC_PLL1	3 /* 768 MHz */
 
 struct clkctl_acpu_speed acpu_freq_tbl[] = {
-	{  19200, CCTL(CLK_TCXO, 1),		SRC_RAW, 0, 0, 925 },
-	{ 128000, CCTL(CLK_TCXO, 1),		SRC_AXI, 0, 0, 925 },
-	{ 245000, CCTL(CLK_MODEM_PLL, 1),	SRC_RAW, 0, 0, 925 },
-	{ 256000, CCTL(CLK_GLOBAL_PLL, 3),	SRC_RAW, 0, 0, 925 },
-	{ 384000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0A, 0, 950 },
-	{ 422400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0B, 0, 975 },
-	{ 460800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0C, 0, 1000 },
-	{ 499200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0D, 0, 1025 },
-	{ 537600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0E, 0, 1050 },
-	{ 576000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0F, 0, 1050 },
-	{ 614400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x10, 0, 1075 },
-	{ 652800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x11, 0, 1100 },
-	{ 691200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x12, 0, 1125 },
-	{ 729600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x13, 0, 1150 },
-	{ 768000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x14, 0, 1150 },
-	{ 806400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x15, 0, 1175 },
-	{ 844800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x16, 0, 1200 },
-	{ 883200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x17, 0, 1200 },
-	{ 921600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x18, 0, 1225 },
-	{ 960000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x19, 0, 1225 },
-	{ 998400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1A, 0, 1225 },
+	{  19200, CCTL(CLK_TCXO, 1),		SRC_RAW, 0, 0, 925, 14000 },
+	{ 128000, CCTL(CLK_TCXO, 1),		SRC_AXI, 0, 0, 925, 14000 },
+	{ 245000, CCTL(CLK_MODEM_PLL, 1),	SRC_RAW, 0, 0, 925, 29000 },
+	{ 256000, CCTL(CLK_GLOBAL_PLL, 3),	SRC_RAW, 0, 0, 925, 29000 },
+	{ 384000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0A, 0, 950, 58000 },
+	{ 422400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0B, 0, 975, 117000 },
+	{ 460800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0C, 0, 1000, 117000 },
+	{ 499200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0D, 0, 1025, 117000 },
+	{ 537600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0E, 0, 1050, 117000 },
+	{ 576000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x0F, 0, 1050, 117000 },
+	{ 614400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x10, 0, 1075, 117000 },
+	{ 652800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x11, 0, 1100, 117000 },
+	{ 691200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x12, 0, 1125, 117000 },
+	{ 729600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x13, 0, 1150, 117000 },
+	{ 768000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x14, 0, 1150, 128000 },
+	{ 806400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x15, 0, 1175, 128000  },
+	{ 844800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x16, 0, 1200, 128000  },
+	{ 883200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x17, 0, 1200, 128000  },
+	{ 921600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x18, 0, 1225, 128000  },
+	{ 960000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x19, 0, 1225, 128000  },
+	{ 998400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1A, 0, 1225, 128000  },
 	{ 0 },
 };
 
@@ -109,6 +110,9 @@ struct clkctl_acpu_speed *acpu_mpll = &acpu_freq_tbl[2];
 
 #ifdef CONFIG_CPU_FREQ_TABLE
 static struct cpufreq_frequency_table freq_table[ARRAY_SIZE(acpu_freq_tbl)];
+
+struct clk *clk_get(struct device *dev, const char *id);
+int clk_set_rate(struct clk *clk, unsigned long rate);
 
 static void __init acpuclk_init_cpufreq_table(void)
 {
@@ -155,6 +159,7 @@ struct clock_state {
 	uint32_t			vdd_switch_time_us;
 	unsigned long			power_collapse_khz;
 	unsigned long			wait_for_irq_khz;
+	struct clk*			clk_ebi1;
 	int (*acpu_set_vdd) (int mvolts);
 };
 
@@ -286,7 +291,7 @@ static int acpuclk_set_vdd_level(int vdd)
 	}
 }
 
-int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
+int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 {
 	struct clkctl_acpu_speed *cur, *next;
 	unsigned long flags;
@@ -297,8 +302,6 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 
 	/* convert to KHz */
 	rate /= 1000;
-
-	DEBUG("acpuclk_set_rate(%d,%d)\n", (int) rate, for_power_collapse);
 
 	if (rate == 0 || rate == cur->acpu_khz)
 		return 0;
@@ -313,7 +316,7 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 		freq_index++;
 	}
 
-	if (!for_power_collapse) {
+	if (reason == SETRATE_CPUFREQ) {
 		mutex_lock(&drv_state.lock);
 #ifdef CONFIG_MSM_CPU_AVS
 		/* Notify avs before changing frequency */
@@ -363,7 +366,13 @@ int acpuclk_set_rate(unsigned long rate, int for_power_collapse)
 	drv_state.current_speed = next;
 
 	spin_unlock_irqrestore(&acpu_lock, flags);
-	if (!for_power_collapse) {
+
+	if (reason == SETRATE_CPUFREQ || reason == SETRATE_PC) {
+		if (cur->axiclk_khz != next->axiclk_khz)
+			clk_set_rate(drv_state.clk_ebi1, next->axiclk_khz * 1000);
+	}
+
+	if (reason == SETRATE_CPUFREQ) {
 #ifdef CONFIG_MSM_CPU_AVS
 		/* notify avs after changing frequency */
 		rc = avs_adjust_freq(freq_index, 0);
@@ -431,15 +440,15 @@ static void __init acpuclk_init(void)
 		BUG();
 	}
 
-	/* Move to 768MHz for boot, which is a safe frequency
-	 * for all versions of Scorpion at the moment.
+	/* Move to 998MHz for boot, which is a safe frequency
+	 * for all Nexus One.
 	 */
 	speed = acpu_freq_tbl;
 	for (;;) {
-		if (speed->acpu_khz == 768000)
+		if (speed->acpu_khz == 998400)
 			break;
 		if (speed->acpu_khz == 0) {
-			pr_err("acpuclk_init: cannot find 768MHz\n");
+			pr_err("acpuclk_init: cannot find 998MHz\n");
 			BUG();
 		}
 		speed++;
@@ -475,11 +484,13 @@ uint32_t acpuclk_get_switch_time(void)
 	return drv_state.acpu_switch_time_us;
 }
 
-unsigned long acpuclk_power_collapse(void)
+unsigned long acpuclk_power_collapse(int from_idle)
 {
 	int ret = acpuclk_get_rate();
+	enum setrate_reason reason = (from_idle) ? SETRATE_PC_IDLE : SETRATE_PC;
+
 	if (ret > drv_state.power_collapse_khz)
-		acpuclk_set_rate(drv_state.power_collapse_khz * 1000, 1);
+		acpuclk_set_rate(drv_state.power_collapse_khz * 1000, reason);
 	return ret * 1000;
 }
 
@@ -492,7 +503,7 @@ unsigned long acpuclk_wait_for_irq(void)
 {
 	int ret = acpuclk_get_rate();
 	if (ret > drv_state.wait_for_irq_khz)
-		acpuclk_set_rate(drv_state.wait_for_irq_khz * 1000, 1);
+		acpuclk_set_rate(drv_state.wait_for_irq_khz * 1000, SETRATE_SWFI);
 	return ret * 1000;
 }
 
@@ -530,6 +541,9 @@ void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *clkdata)
 
 	acpuclk_init();
 	acpuclk_init_cpufreq_table();
+
+	drv_state.clk_ebi1 = clk_get(NULL,"ebi1_clk");
+	clk_set_rate(drv_state.clk_ebi1, drv_state.current_speed->axiclk_khz * 1000);
 #ifdef CONFIG_MSM_CPU_AVS
 	if (!acpu_avs_init(drv_state.acpu_set_vdd,
 		drv_state.current_speed->acpu_khz)) {
