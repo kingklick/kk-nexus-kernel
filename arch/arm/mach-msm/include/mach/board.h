@@ -18,23 +18,6 @@
 #define __ASM_ARCH_MSM_BOARD_H
 
 #include <linux/types.h>
-#include <linux/regulator/machine.h>
-
-/*
- * struct regulator
- *
- * One for each consumer device.
- */
-struct regulator {
-	struct device *dev;
-	struct list_head list;
-	int uA_load;
-	int min_uV;
-	int max_uV;
-	char *supply_name;
-	struct device_attribute dev_attr;
-	struct regulator_dev *rdev;
-};
 
 /* platform device data structures */
 
@@ -46,9 +29,6 @@ struct msm_acpu_clock_platform_data
 	unsigned long mpll_khz;
 	unsigned long power_collapse_khz;
 	unsigned long wait_for_irq_khz;
-	struct regulator *regulator;
-	unsigned int max_vdd;
-	int (*acpu_set_vdd) (int mvolts);
 };
 
 struct msm_camera_io_ext {

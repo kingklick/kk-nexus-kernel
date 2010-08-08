@@ -437,7 +437,7 @@ static struct regulator_init_data tps65023_data[5] = {
 	{
 		.constraints = {
 			.name = "dcdc1", /* VREG_MSMC2_1V29 */
-			.min_uV = 800000,
+			.min_uV = 1000000,
 			.max_uV = 1300000,
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
 		},
@@ -968,59 +968,13 @@ static void config_gpio_table(uint32_t *table, int len)
 	}
 }
 
-#ifdef CONFIG_QSD_SVS
-#define TPS65023_MAX_DCDC1	1300
-#else
-#define TPS65023_MAX_DCDC1	CONFIG_QSD_PMIC_DEFAULT_DCDC1
-#endif
-
-static struct msm_acpu_clock_platform_data mahimahi_clock_data;
-
-static int qsd8x50_tps65023_set_dcdc1(int mVolts)
-{
-	int rc = 0;
-
-	if (!mahimahi_clock_data.regulator || IS_ERR(mahimahi_clock_data.regulator)) {
-		mahimahi_clock_data.regulator = regulator_get(NULL, "acpu_vcore");
-		if (IS_ERR(mahimahi_clock_data.regulator)) {
-			pr_info("qsd8x50_tps65023_set_dcdc1 %d no regulator\n", mVolts);
-			/* Assume that the PMIC supports scaling the processor
-			  * to its maximum frequency at its default voltage.
-			  */
-			return 0;
-		}
-		pr_info("qsd8x50_tps65023_set_dcdc1 got regulator\n");
-	}
-
-#ifdef CONFIG_QSD_SVS
-	mVolts *= 1000;
-
-	rc = tps65023_dcdc_set_voltage(mahimahi_clock_data.regulator->rdev, mVolts, mVolts);
-	/* By default the TPS65023 will be initialized to 1.225V.
-	 * So we can safely switch to any frequency within this
-	 * voltage even if the device is not probed/ready.
-	 */
-	if (rc == -ENODEV && mVolts <= CONFIG_QSD_PMIC_DEFAULT_DCDC1)
-		rc = 0;
-#else
-	/* Disallow frequencies not supported in the default PMIC
-	 * output voltage.
-	 */
-	if (mVolts > CONFIG_QSD_PMIC_DEFAULT_DCDC1)
-		rc = -EFAULT;
-#endif
-	return rc;
-}
-
 static struct msm_acpu_clock_platform_data mahimahi_clock_data = {
 	.acpu_switch_time_us	= 20,
 	.max_speed_delta_khz	= 256000,
 	.vdd_switch_time_us	= 62,
 	.power_collapse_khz	= 245000,
 	.wait_for_irq_khz	= 245000,
-	.mpll_khz		= 245000,
-	.max_vdd 		= TPS65023_MAX_DCDC1,
-	.acpu_set_vdd 		= qsd8x50_tps65023_set_dcdc1
+	.mpll_khz		= 245000
 };
 
 static struct msm_acpu_clock_platform_data mahimahi_cdma_clock_data = {
@@ -1029,9 +983,7 @@ static struct msm_acpu_clock_platform_data mahimahi_cdma_clock_data = {
 	.vdd_switch_time_us	= 62,
 	.power_collapse_khz	= 235930,
 	.wait_for_irq_khz	= 235930,
-	.mpll_khz		= 235930,
-	.max_vdd 		= TPS65023_MAX_DCDC1,
-	.acpu_set_vdd 		= qsd8x50_tps65023_set_dcdc1
+	.mpll_khz		= 235930
 };
 
 static ssize_t mahimahi_virtual_keys_show(struct kobject *kobj,
