@@ -67,12 +67,9 @@ struct audio_client *q6voice_open(uint32_t flags, uint32_t acdb_id);
 struct audio_client *q6audio_open_mp3(uint32_t bufsz, uint32_t rate,
 				      uint32_t channels, uint32_t acdb_id);
 
-struct audio_client *q6fm_open(void);
-
 int q6audio_close(struct audio_client *ac);
 int q6voice_close(struct audio_client *ac);
 int q6audio_mp3_close(struct audio_client *ac);
-int q6fm_close(struct audio_client *ac);
 
 int q6audio_read(struct audio_client *ac, struct audio_buffer *ab);
 int q6audio_write(struct audio_client *ac, struct audio_buffer *ab);
