@@ -62,6 +62,9 @@
 #define H2W_DBG(fmt, arg...) do {} while (0)
 #endif
 
+#define DEVICE_ACCESSORY_ATTR(_name, _mode, _show, _store) \
+struct device_attribute dev_attr_##_name = __ATTR(flag, _mode, _show, _store)
+
 void detect_h2w_do_work(struct work_struct *w);
 
 static struct workqueue_struct *detect_wq;
@@ -77,7 +80,12 @@ static void button_35mm_do_work(struct work_struct *work);
 static DECLARE_WORK(button_35mm_work, button_35mm_do_work);
 
 struct h35_info {
+	struct class *htc_accessory_class;
+	struct device *tty_dev;
+	struct device *fm_dev;
 	struct mutex mutex_lock;
+	int tty_enable_flag;
+	int fm_flag;
 	struct switch_dev hs_change;
 	unsigned long insert_jiffies;
 	int ext_35mm_status;
@@ -269,6 +277,114 @@ int htc_35mm_jack_plug_event(int insert, int *hpin_stable)
 	return 1;
 }
 
+static ssize_t tty_flag_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	char *s = buf;
+	mutex_lock(&hi->mutex_lock);
+	s += sprintf(s, "%d\n", hi->tty_enable_flag);
+	mutex_unlock(&hi->mutex_lock);
+	return (s - buf);
+}
+
+static ssize_t tty_flag_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int state;
+
+	mutex_lock(&hi->mutex_lock);
+	state = switch_get_state(&hi->hs_change);
+	state &= ~(BIT_TTY | BIT_TTY_VCO | BIT_TTY_HCO);
+
+	if (count == (strlen("enable") + 1) &&
+	   strncmp(buf, "enable", strlen("enable")) == 0) {
+		hi->tty_enable_flag = 1;
+		switch_set_state(&hi->hs_change, state | BIT_TTY);
+		mutex_unlock(&hi->mutex_lock);
+		printk(KERN_INFO "Enable TTY FULL\n");
+		return count;
+	}
+	if (count == (strlen("vco_enable") + 1) &&
+	   strncmp(buf, "vco_enable", strlen("vco_enable")) == 0) {
+		hi->tty_enable_flag = 2;
+		switch_set_state(&hi->hs_change, state | BIT_TTY_VCO);
+		mutex_unlock(&hi->mutex_lock);
+		printk(KERN_INFO "Enable TTY VCO\n");
+		return count;
+	}
+	if (count == (strlen("hco_enable") + 1) &&
+	   strncmp(buf, "hco_enable", strlen("hco_enable")) == 0) {
+		hi->tty_enable_flag = 3;
+		switch_set_state(&hi->hs_change, state | BIT_TTY_HCO);
+		mutex_unlock(&hi->mutex_lock);
+		printk(KERN_INFO "Enable TTY HCO\n");
+		return count;
+	}
+	if (count == (strlen("disable") + 1) &&
+	   strncmp(buf, "disable", strlen("disable")) == 0) {
+		hi->tty_enable_flag = 0;
+		switch_set_state(&hi->hs_change, state);
+		mutex_unlock(&hi->mutex_lock);
+		printk(KERN_INFO "Disable TTY\n");
+		return count;
+	}
+	printk(KERN_ERR "tty_enable_flag_store: invalid argument\n");
+	return -EINVAL;
+}
+static DEVICE_ACCESSORY_ATTR(tty, 0666, tty_flag_show, tty_flag_store);
+
+static ssize_t fm_flag_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int state;
+
+	mutex_lock(&hi->mutex_lock);
+	state = switch_get_state(&hi->hs_change);
+	state &= ~(BIT_FM_HEADSET | BIT_FM_SPEAKER);
+
+	if (count == (strlen("fm_headset") + 1) &&
+	   strncmp(buf, "fm_headset", strlen("fm_headset")) == 0) {
+		hi->fm_flag = 1;
+		state |= BIT_FM_HEADSET;
+		printk(KERN_INFO "Enable FM HEADSET\n");
+	} else if (count == (strlen("fm_speaker") + 1) &&
+	   strncmp(buf, "fm_speaker", strlen("fm_speaker")) == 0) {
+		hi->fm_flag = 2;
+		state |= BIT_FM_SPEAKER;
+		printk(KERN_INFO "Enable FM SPEAKER\n");
+	} else if (count == (strlen("disable") + 1) &&
+	   strncmp(buf, "disable", strlen("disable")) == 0) {
+		hi->fm_flag = 0 ;
+		printk(KERN_INFO "Disable FM\n");
+	} else {
+		mutex_unlock(&hi->mutex_lock);
+		printk(KERN_ERR "fm_enable_flag_store: invalid argument\n");
+		return -EINVAL;
+	}
+	switch_set_state(&hi->hs_change, state);
+	mutex_unlock(&hi->mutex_lock);
+	return count;
+}
+
+static ssize_t fm_flag_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	char *s = buf;
+	char *show_str;
+	mutex_lock(&hi->mutex_lock);
+	if (hi->fm_flag == 0)
+		show_str = "disable";
+	if (hi->fm_flag == 1)
+		show_str = "fm_headset";
+	if (hi->fm_flag == 2)
+		show_str = "fm_speaker";
+
+	s += sprintf(s, "%s\n", show_str);
+	mutex_unlock(&hi->mutex_lock);
+	return (s - buf);
+}
+static DEVICE_ACCESSORY_ATTR(fm, 0666, fm_flag_show, fm_flag_store);
+
 static int htc_35mm_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -284,6 +400,8 @@ static int htc_35mm_probe(struct platform_device *pdev)
 	hi->ext_35mm_status = 0;
 	hi->is_ext_insert = 0;
 	hi->mic_bias_state = 0;
+	hi->tty_enable_flag = 0;
+	hi->fm_flag = 0;
 
 	mutex_init(&hi->mutex_lock);
 
@@ -294,6 +412,39 @@ static int htc_35mm_probe(struct platform_device *pdev)
 	ret = switch_dev_register(&hi->hs_change);
 	if (ret < 0)
 		goto err_switch_dev_register;
+
+	hi->htc_accessory_class = class_create(THIS_MODULE, "htc_accessory");
+	if (IS_ERR(hi->htc_accessory_class)) {
+		ret = PTR_ERR(hi->htc_accessory_class);
+		hi->htc_accessory_class = NULL;
+		goto err_switch_dev_register;
+	}
+
+	hi->tty_dev = device_create(hi->htc_accessory_class,
+				    NULL, 0, "%s", "tty");
+	if (unlikely(IS_ERR(hi->tty_dev))) {
+		ret = PTR_ERR(hi->tty_dev);
+		hi->tty_dev = NULL;
+		goto err_create_tty_device;
+	}
+
+	/* register the attributes */
+	ret = device_create_file(hi->tty_dev, &dev_attr_tty);
+	if (ret)
+		goto err_create_tty_device_file;
+
+	hi->fm_dev = device_create(hi->htc_accessory_class,
+				   NULL, 0, "%s", "fm");
+	if (unlikely(IS_ERR(hi->fm_dev))) {
+		ret = PTR_ERR(hi->fm_dev);
+		hi->fm_dev = NULL;
+		goto err_create_fm_device;
+	}
+
+	/* register the attributes */
+	ret = device_create_file(hi->fm_dev, &dev_attr_fm);
+	if (ret)
+		goto err_create_fm_device_file;
 
 	detect_wq = create_workqueue("detection");
 	if (detect_wq  == NULL) {
@@ -349,6 +500,14 @@ err_request_input_dev:
 	destroy_workqueue(button_wq);
 err_create_button_work_queue:
 	destroy_workqueue(detect_wq);
+err_create_fm_device_file:
+	device_unregister(hi->fm_dev);
+err_create_fm_device:
+	device_remove_file(hi->tty_dev, &dev_attr_tty);
+err_create_tty_device_file:
+	device_unregister(hi->tty_dev);
+err_create_tty_device:
+	class_destroy(hi->htc_accessory_class);
 err_create_detect_work_queue:
 	switch_dev_unregister(&hi->hs_change);
 err_switch_dev_register:
@@ -361,6 +520,13 @@ err_switch_dev_register:
 static int htc_35mm_remove(struct platform_device *pdev)
 {
 	H2W_DBG("");
+
+	device_remove_file(hi->fm_dev, &dev_attr_fm);
+	device_unregister(hi->fm_dev);
+	device_remove_file(hi->tty_dev, &dev_attr_tty);
+	device_unregister(hi->tty_dev);
+	class_destroy(hi->htc_accessory_class);
+
 	switch_dev_unregister(&hi->hs_change);
 	kzfree(hi);
 
