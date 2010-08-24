@@ -57,7 +57,7 @@ static int qspi_send(uint32_t id, uint8_t data)
 		}
 	}
 	writel((0x7000 | (id << 9) | data) << 16, spi_base + SPI_OUTPUT_FIFO);
-	udelay(100);
+	usleep(100);
 
 	return 0;
 }
@@ -469,9 +469,9 @@ static int samsung_oled_panel_unblank(struct msm_lcdc_panel_ops *ops)
 	mutex_lock(&panel_lock);
 
 	gpio_set_value(MAHIMAHI_GPIO_LCD_RST_N, 1);
-	udelay(50);
+	usleep(50);
 	gpio_set_value(MAHIMAHI_GPIO_LCD_RST_N, 0);
-	udelay(20);
+	usleep(20);
 	gpio_set_value(MAHIMAHI_GPIO_LCD_RST_N, 1);
 	msleep(20);
 
