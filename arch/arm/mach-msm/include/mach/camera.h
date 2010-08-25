@@ -42,6 +42,7 @@
 #define NUM_AUTOFOCUS_MULTI_WINDOW_GRIDS 16
 #define NUM_STAT_OUTPUT_BUFFERS      3
 #define NUM_AF_STAT_OUTPUT_BUFFERS      3
+#define max_control_command_size 150
 
 enum msm_queue {
 	MSM_CAM_Q_CTRL,     /* control command or control command status */
@@ -54,14 +55,17 @@ enum vfe_resp_msg {
 	VFE_EVENT,
 	VFE_MSG_GENERAL,
 	VFE_MSG_SNAPSHOT,
+#ifndef CONFIG_720P_CAMERA
 	VFE_MSG_OUTPUT1,
 	VFE_MSG_OUTPUT2,
-	VFE_MSG_STATS_AF,
-	VFE_MSG_STATS_WE, /* AEC + AWB */
+#else
 	VFE_MSG_OUTPUT_P,   /* preview (continuous mode ) */
 	VFE_MSG_OUTPUT_T,   /* thumbnail (snapshot mode )*/
 	VFE_MSG_OUTPUT_S,   /* main image (snapshot mode )*/
 	VFE_MSG_OUTPUT_V,   /* video   (continuous mode ) */
+#endif
+	VFE_MSG_STATS_AF,
+	VFE_MSG_STATS_WE, /* AEC + AWB */
 	VFE_MSG_STATS_AEC,
 	VFE_MSG_STATS_AWB,
 	VFE_MSG_STATS_RS,
@@ -74,7 +78,7 @@ struct msm_vfe_phy_info {
 	uint32_t sbuf_phy;
 	uint32_t y_phy;
 	uint32_t cbcr_phy;
-	uint8_t  output_id; /* OUTPUT_MODE_P/T/S/V */
+	uint8_t  output_id; /* VFE31_OUTPUT_MODE_PT/S/V */
 };
 
 struct msm_vfe_resp {
@@ -91,7 +95,6 @@ struct msm_vfe_callback {
 		gfp_t gfp);
 	void* (*vfe_alloc)(int, void *syncdata, gfp_t gfp);
 	void (*vfe_free)(void *ptr);
-	int (*flash_ctrl)(void *syncdata, int level);
 };
 
 struct msm_camvfe_fn {
@@ -104,17 +107,21 @@ struct msm_camvfe_fn {
 };
 
 struct msm_sensor_ctrl {
-	int (*s_init)(const struct msm_camera_sensor_info *);
+	int (*s_init)(struct msm_camera_sensor_info *);
 	int (*s_release)(void);
 	int (*s_config)(void __user *);
 };
 
 /* this structure is used in kernel */
 struct msm_queue_cmd {
+#ifdef CONFIG_MSM_CAMERA_OLD
+	struct list_head list;
+#else
 	struct list_head list_config;
 	struct list_head list_control;
 	struct list_head list_frame;
 	struct list_head list_pict;
+#endif
 	enum msm_queue type;
 	void *command;
 	int on_heap;
@@ -158,6 +165,7 @@ struct msm_sync {
 	struct msm_camera_sensor_info *sdata;
 	struct msm_camvfe_fn vfefn;
 	struct msm_sensor_ctrl sctrl;
+	struct wake_lock wake_suspend_lock;
 	struct wake_lock wake_lock;
 	struct platform_device *pdev;
 	uint8_t opencnt;
@@ -197,7 +205,7 @@ struct msm_control_device {
 	struct msm_device *pmsm;
 
 	/* Used for MSM_CAM_IOCTL_CTRL_CMD_DONE responses */
-	uint8_t ctrl_data[50];
+	uint8_t ctrl_data[max_control_command_size];
 	struct msm_ctrl_cmd ctrl;
 	struct msm_queue_cmd qcmd;
 
@@ -224,8 +232,10 @@ struct msm_pmem_region {
 struct axidata {
 	uint32_t bufnum1;
 	uint32_t bufnum2;
-	struct msm_pmem_region *region;
+#ifdef CONFIG_720P_CAMERA
 	uint32_t bufnum3;
+#endif
+	struct msm_pmem_region *region;
 };
 
 #ifdef CONFIG_MSM_CAMERA_V4L2
@@ -250,9 +260,15 @@ int msm_v4l2_unregister(struct msm_v4l2_driver *);
 void msm_camvfe_init(void);
 int msm_camvfe_check(void *);
 void msm_camvfe_fn_init(struct msm_camvfe_fn *, void *);
+#ifdef CONFIG_MSM_CAMERA_OLD
 int msm_camera_drv_start(struct platform_device *dev,
-		int (*sensor_probe)(const struct msm_camera_sensor_info *,
+                int (*sensor_probe)(const struct msm_camera_sensor_info *,
+                                        struct msm_sensor_ctrl *));
+#else
+int msm_camera_drv_start(struct platform_device *dev,
+		int (*sensor_probe)(struct msm_camera_sensor_info *,
 					struct msm_sensor_ctrl *));
+#endif
 
 enum msm_camio_clk_type {
 	CAMIO_VFE_MDC_CLK,
