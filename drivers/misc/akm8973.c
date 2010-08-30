@@ -212,7 +212,7 @@ static int AKECS_SetMode(char mode)
 	}
 
 	/* wait at least 300us after changing mode */
-	usleep(500);
+	msleep(1);
 	return ret;
 }
 
