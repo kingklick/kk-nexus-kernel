@@ -27,7 +27,6 @@
 #include <mach/msm_iomap.h>
 
 #include "acpuclock.h"
-#include "avs.h"
 #include "proc_comm.h"
 
 #if 0
@@ -88,12 +87,12 @@ struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 691200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x12, 0, 1175, 117000 },
 	{ 729600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x13, 0, 1175, 117000 },
 	{ 768000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x14, 0, 1200, 128000 },
-	{ 806400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x15, 0, 1225, 128000 },
-	{ 844800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x16, 0, 1250, 128000 },
-	{ 883200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x17, 0, 1250, 128000 },
-	{ 921600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x18, 0, 1275, 128000 },
-	{ 960000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x19, 0, 1275, 128000 },
-	{ 998400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1A, 0, 1275, 128000 },
+	{ 806400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x15, 0, 1225, 128000  },
+	{ 844800, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x16, 0, 1250, 128000  },
+	{ 883200, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x17, 0, 1250, 128000  },
+	{ 921600, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x18, 0, 1275, 128000  },
+	{ 960000, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x19, 0, 1275, 128000  },
+	{ 998400, CCTL(CLK_TCXO, 1),		SRC_SCPLL, 0x1A, 0, 1275, 128000  },
 	{ 0 },
 };
 
@@ -279,29 +278,6 @@ static void select_clock(unsigned src, unsigned config)
 	writel(val | ((src & 3) << 1), SPSS_CLK_SEL_ADDR);
 }
 
-#ifdef CONFIG_MSM_CPU_AVS
-static int acpu_set_vdd(int vdd)
-{
-	if (!drv_state.regulator || IS_ERR(drv_state.regulator)) {
-		drv_state.regulator = regulator_get(NULL, "acpu_vcore");
-		if (IS_ERR(drv_state.regulator)) {
-			pr_info("acpuclk_set_vdd_level %d no regulator\n", vdd);
-			/* Assume that the PMIC supports scaling the processor
-			 * to its maximum frequency at its default voltage.
-			 */
-			return 0;
-		}
-		pr_info("acpuclk_set_vdd_level got regulator\n");
-	}
-	vdd *= 1000; /* mV -> uV */
-	return regulator_set_voltage(drv_state.regulator, vdd, vdd);
-}
-
-static int acpuclk_set_vdd_level(int vdd)
-{
-	return 0;
-}
-#else
 static int acpuclk_set_vdd_level(int vdd)
 {
 	if (!drv_state.regulator || IS_ERR(drv_state.regulator)) {
@@ -318,14 +294,11 @@ static int acpuclk_set_vdd_level(int vdd)
 	vdd *= 1000; /* mV -> uV */
 	return regulator_set_voltage(drv_state.regulator, vdd, vdd);
 }
-#endif
 
 int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 {
 	struct clkctl_acpu_speed *cur, *next;
 	unsigned long flags;
-	int rc = 0;
-	int freq_index = 0;
 
 	cur = drv_state.current_speed;
 
@@ -342,29 +315,16 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 		if (next->acpu_khz == 0)
 			return -EINVAL;
 		next++;
-		freq_index++;
 	}
 
 	if (reason == SETRATE_CPUFREQ) {
-#ifdef CONFIG_MSM_CPU_AVS
-		/* Notify avs before changing frequency */
-		rc = avs_adjust_freq(freq_index, 1);
-		if (rc) {
-			printk(KERN_ERR
-				"acpuclock: Unable to increase ACPU "
-				"vdd.\n");
-			mutex_unlock(&drv_state.lock);
-			return rc;
-		}
-#endif
 		mutex_lock(&drv_state.lock);
 		/* Increase VDD if needed. */
 		if (next->vdd > cur->vdd) {
-			rc = acpuclk_set_vdd_level(next->vdd);
-			if (rc) {
+			if (acpuclk_set_vdd_level(next->vdd)) {
 				pr_err("acpuclock: Unable to increase ACPU VDD.\n");
 				mutex_unlock(&drv_state.lock);
-				return rc;
+				return -EINVAL;
 			}
 		}
 	}
@@ -402,23 +362,15 @@ int acpuclk_set_rate(unsigned long rate, enum setrate_reason reason)
 	}
 
 	if (reason == SETRATE_CPUFREQ) {
-#ifdef CONFIG_MSM_CPU_AVS
-		/* notify avs after changing frequency */
-		rc = avs_adjust_freq(freq_index, 0);
-		if (rc)
-			printk(KERN_ERR
-				"acpuclock: Unable to drop ACPU vdd.\n");
-#endif
 		/* Drop VDD level if we can. */
 		if (next->vdd < cur->vdd) {
-			rc = acpuclk_set_vdd_level(next->vdd);
-			if (rc)
+			if (acpuclk_set_vdd_level(next->vdd))
 				pr_err("acpuclock: Unable to drop ACPU VDD.\n");
 		}
 		mutex_unlock(&drv_state.lock);
 	}
 
-	return rc;
+	return 0;
 }
 
 static unsigned __init acpuclk_find_speed(void)
@@ -536,23 +488,6 @@ unsigned long acpuclk_wait_for_irq(void)
 	return ret * 1000;
 }
 
-#ifdef CONFIG_MSM_CPU_AVS
-static int __init acpu_avs_init(int (*set_vdd) (int), int khz)
-{
-	int i;
-	int freq_count = 0;
-	int freq_index = -1;
-
-	for (i = 0; acpu_freq_tbl[i].acpu_khz; i++) {
-		freq_count++;
-		if (acpu_freq_tbl[i].acpu_khz == khz)
-			freq_index = i;
-	}
-
-	return avs_init(set_vdd, freq_count, freq_index);
-}
-#endif
-
 void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *clkdata)
 {
 	spin_lock_init(&acpu_lock);
@@ -572,11 +507,4 @@ void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *clkdata)
 
 	drv_state.clk_ebi1 = clk_get(NULL,"ebi1_clk");
 	clk_set_rate(drv_state.clk_ebi1, drv_state.current_speed->axiclk_khz * 1000);
-
-#ifdef CONFIG_MSM_CPU_AVS
-	if (!acpu_avs_init(acpu_set_vdd,
-		drv_state.current_speed->acpu_khz)) {
-		/* avs init successful. avs will handle voltage changes */
-	}
-#endif
 }
