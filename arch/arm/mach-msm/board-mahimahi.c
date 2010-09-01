@@ -735,24 +735,13 @@ static struct platform_device mahimahi_timed_gpios = {
 };
 
 static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
-	.rx_wakeup_irq = -1,
+	.rx_wakeup_irq = MSM_GPIO_TO_INT(MAHIMAHI_GPIO_BT_HOST_WAKE),
 	.inject_rx_on_wakeup = 0,
-	.exit_lpm_cb = bcm_bt_lpm_exit_lpm_locked,
-};
 
-static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
-	.gpio_wake = MAHIMAHI_GPIO_BT_WAKE,
-	.gpio_host_wake = MAHIMAHI_GPIO_BT_HOST_WAKE,
-	.request_clock_off_locked = msm_hs_request_clock_off_locked,
-	.request_clock_on_locked = msm_hs_request_clock_on_locked,
-};
-
-struct platform_device bcm_bt_lpm_device = {
-	.name = "bcm_bt_lpm",
-	.id = 0,
-	.dev = {
-		.platform_data = &bcm_bt_lpm_pdata,
-	},
+	/* for bcm */
+	.bt_wakeup_pin_supported = 1,
+	.bt_wakeup_pin = MAHIMAHI_GPIO_BT_WAKE,
+	.host_wakeup_pin = MAHIMAHI_GPIO_BT_HOST_WAKE,
 };
 
 static int ds2784_charge(int on, int fast)
@@ -832,7 +821,6 @@ static struct platform_device *devices[] __initdata = {
 #if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	&msm_device_uart1,
 #endif
-	&bcm_bt_lpm_device,
 	&msm_device_uart_dm1,
 	&ram_console_device,
 	&mahimahi_rfkill,
@@ -1067,7 +1055,6 @@ static void __init mahimahi_init(void)
 	config_gpio_table(misc_gpio_table, ARRAY_SIZE(misc_gpio_table));
 
 	if (is_cdma_version(system_rev)) {
-		bcm_bt_lpm_pdata.gpio_wake = MAHIMAHI_CDMA_GPIO_BT_WAKE;
 		mahimahi_flashlight_data.torch = MAHIMAHI_CDMA_GPIO_FLASHLIGHT_TORCH;
 		config_gpio_table(bt_gpio_table_rev_CX, ARRAY_SIZE(bt_gpio_table_rev_CX));
 	} else {
@@ -1094,6 +1081,7 @@ static void __init mahimahi_init(void)
 
 	msm_device_hsusb.dev.platform_data = &msm_hsusb_pdata;
 	msm_device_uart_dm1.dev.platform_data = &msm_uart_dm1_pdata;
+	msm_device_uart_dm1.name = "msm_serial_hs_bcm";
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
